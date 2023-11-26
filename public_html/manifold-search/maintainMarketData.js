@@ -12,13 +12,15 @@ const sleep = async function(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+const publicallyListedMarketIds = {};
+
+//Debugging function to notice when anything is blocking for too long.
 let lastTime = performance.now()
 setInterval(function() {
 	const delta = performance.now() - lastTime
 	if (delta > 30) {
 		//console.log(delta);
 	}
-	//console.log(queuedMarketQueries.length)
 	lastTime = performance.now();
 }, 1)
 
@@ -97,9 +99,6 @@ const formatApiData = function(apiInfo) {
 		"resolution": apiInfo.resolution,//If the market is not resolved, this is null. If it is resolved, it's the resolution probability. (YES is 1 and NO is 0.) (Or an answer ID for multiple choice. Or "CHOOSE_MULTIPLE". Or "CANCEL");
 		"type": apiInfo.outcomeType + (apiInfo.mechanism === "none" ? "" : ":" + apiInfo.mechanism),
 	};
-	if (apiInfo.outcomeType === "POLL") {
-		console.log(result.type);
-	}
 
 	if (apiInfo.isResolved === false) {
 		result.resolution = null;
@@ -300,7 +299,7 @@ const betLoop = async function() {
 			continue;
 		}
 		if (newBets.length > 0) {
-			console.log(`Loaded ${newBets.length} new bets.`);
+			console.log(`Loaded ${newBets.length} new bets`);
 		}
 		const updatedMarkets = [];
 		for (let bet of newBets) {
@@ -364,7 +363,7 @@ const queueLoop = async function() {
 queueLoop();
 
 //Cyclically go through all liteMarkets from /markets, 1000 at a time. Any that aren't in our database or have a lastUpdatedTime that isn't equal to the one in our database, add to the queue. Will take >1 minute to go through all markets, maybe speed this up eventually.
-const publicallyListedMarketIds = {};
+let cycledThroughAllPublicMarkets = false;
 const existingMarketLoop = async function() {
 	let lastId;
 	while (true) {
@@ -393,14 +392,7 @@ const existingMarketLoop = async function() {
 		lastId = liteMarkets[liteMarkets.length - 1].id;
 		if (liteMarkets.length < 1000) {
 			lastId = undefined;
-			//This loop won't catch non-public markets, so we add those in here.
-			const start = performance.now()
-			for (let marketId in runningMarketData) {
-				if (!publicallyListedMarketIds[marketId]) {
-					addMarketIdToQueue(marketId);
-				}
-			}
-			console.log("Took " + (performance.now() - start))
+			cycledThroughAllPublicMarkets = true;
 		}
 	}
 }
@@ -412,8 +404,23 @@ setInterval(function() {
 	while (queuedMarketQueries.length < 3) {
 		if (marketsToRebuild.length === 0) {
 			marketsToRebuild = Object.keys(runningMarketData);
+			console.log(`Cycled through all ${marketsToRebuild.length} markets, restarting.`);
 			shuffle(marketsToRebuild);
 		}
 		addMarketIdToQueue(marketsToRebuild.pop());
 	}
 }, 10);
+
+//The current market and bet loops won't catch changes to unlisted markets, and waiting for the all market loop to do so is too slow, so we cycle through them separetly.
+const unlistedMarketsToCheck = [];
+setInterval(function() {
+	if (unlistedMarketsToCheck.length === 0 && cycledThroughAllPublicMarkets) {
+		for (let marketId in runningMarketData) {
+			if (!publicallyListedMarketIds[marketId]) {
+				unlistedMarketsToCheck.push(marketId);
+			}
+		}
+		console.log(`Cycled through all ${unlistedMarketsToCheck.length} unlisted markets, restarting.`);
+	}
+	addMarketIdToQueue(unlistedMarketsToCheck.pop());
+}, 2000);
