@@ -1,0 +1,112 @@
+#mixingWeights {
+	visibility: hidden;
+}
+
+#searchFruit {
+	max-width: 30rem;
+}
+
+.searchButton {
+	padding-top: 0;
+	padding-bottom: 0;
+	height: fit-content;
+	width: fit-content;
+}
+
+.row {
+	display: grid;
+	width: 100% - 1rem);
+	gap: 1rem;
+	padding: 0.2rem;
+}
+
+.row:nth-child(even) {
+	background-color: white;
+}
+
+.row:nth-child(odd) {
+	background-color: lightgrey;
+}
+
+.row * {
+	margin: 0;
+}
+
+.row a {
+	width: fit-content;
+}
+
+#searchResultsTitleBar {
+	font-weight: bold;
+	margin-bottom: none;
+	background-color: lightblue;
+}
+
+input[type=checkbox] {
+	transform: translateX(0.3rem);
+}
+
+.rightAlign {
+	text-align: right;
+}
+
+#searchResults {
+	list-style-type: none;
+}
+
+.clickable {
+	cursor: pointer;
+}
+
+#searchResults .fancyOval {
+	background-color: #aaaaaa;
+	width: fit-content;
+	height: fit-content;
+	border-radius: 1rem;
+	padding-left: 0.3rem;
+	padding-right: 0.3rem;
+}
+
+#exportButton {
+	position: absolute;
+	right: 1rem;
+	transform: translateY(-3rem);
+}
+
+#exportDiv {
+	display: none;
+	position: fixed;
+	height: 100%;
+	width: 100%;
+	top: 0;
+	left: 0;
+	background-color: white;
+	z-index: 7;
+	padding-left: 2rem;
+	padding-right: 2rem;
+}
+
+#exportData {
+	resize: none;
+	height: calc(100% - 10rem);
+	width: calc(100% - 4rem);
+	display: block;
+}
+
+quote {
+	background-color: lightblue;
+	font-weight: bold;
+}
+
+label {
+	white-space: nowrap;
+}
+
+.tooltip {
+	position: absolute;
+	background-color: #FFFFE0;
+	display: none;
+	width: fit-content;
+	padding: 0.2rem;
+	filter: drop-shadow(3px, 3px);
+}

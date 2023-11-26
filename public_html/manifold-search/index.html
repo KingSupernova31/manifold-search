@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<!-- Global site tag (gtag.js) - Google Analytics -->
+		<script async src="https://www.googletagmanager.com/gtag/js?id=UA-158947959-1"></script>
+		<script>
+		  window.dataLayer = window.dataLayer || [];
+		  function gtag(){dataLayer.push(arguments);}
+		  gtag('js', new Date());
+
+		  gtag('config', 'UA-158947959-1');
+		</script>
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Manifold Search</title>
+
+		<link rel="stylesheet" href="/globalResources/globalcss.css">
+		<script defer src="/globalResources/globaljs&html.js"></script>
+
+		<link rel="stylesheet" href="styles.css">
+		<script defer src="compress.js"></script>
+		<script defer src="workerScripts.js"></script>
+		<script defer src="scripts.js"></script>
+		<script>const linkifyCardNames = false;</script>
+
+		<style id="jsStyles"></style>
+	</head>
+	<body>
+
+		<h1>Manifold Search</h1>
+
+		<p>This is an advanced search function and trading dashboard for <a href="https://manifold.markets/">Manifold Markets</a>. For feature documentation and requests, see <a href="documentation.html">here</a>.</p>
+
+		<div id="searchCriteria">
+			<span><b>Search options:</b></span>
+			<label>Question:
+				<input id="question"></input>
+			</label>
+			<label>Description:
+				<input id="description"></input>
+			</label>
+			<label>Groups:
+				<input id="groups" list="groupsDatalist"></input>
+				<datalist id="groupsDatalist"></datalist>
+			</label>
+			<label>Answers:
+				<input id="answers"></input>
+			</label>
+			<label>Any market field:
+				<input id="any"></input>
+			</label>
+			<label>Creator username:
+				<input id="creator" list="creatorDatalist"></input>
+				<datalist id="creatorDatalist"></datalist>
+			</label>
+			<label>Status:
+				<label>
+					<input id="open" type="checkbox"></input>
+					Open
+				</label>
+				<label>
+					<input id="closed" type="checkbox"></input>
+					Closed
+				</label>
+				<label>
+					<input id="resolved" type="checkbox"></input>
+					Resolved
+				</label>
+			</label>
+			<label>Type:
+				<input id="type" list="typeDatalist"></input>
+				<datalist id="typeDatalist"></datalist>
+			</label>
+			<label>Close time:
+				<input id="closeTime"></input>
+			</label>
+			<label>Created time:
+				<input id="createdTime"></input>
+			</label>
+			<label>Percentage:
+				<input id="percentage"></input>
+			</label>
+			<label>Liquidity:
+				<input id="liquidity"></input>
+			</label>
+			<label>Volume:
+				<input id="volume"></input>
+			</label>
+			<label>24 hour volume:
+				<input id="volume24Hours"></input>
+			</label>
+			<label>Traders count:
+				<input id="totalTraders"></input>
+			</label>
+			<label>Number of groups:
+				<input id="numGroups"></input>
+			</label>
+			<label>Last updated:
+				<input id="lastUpdatedTime"></input>
+			</label>
+			<label>Custom:
+				<input id="custom"></input>
+			</label>
+			<label id="dashboardLabel">
+				<input id="dashboardCheckbox" type="checkbox"></input>
+				Dashboard
+			</label>
+			<button id="clear">Clear search</button>
+		</div>
+
+		<br>
+
+		<label><b>Sort by:</b>
+			<select id="sortOrder">
+				<option>Close time</option>
+				<option>Created time</option>
+				<option>Creator</option>
+				<option>Last updated</option>
+				<option>Liquidity</option>
+				<option>Number of groups</option>
+				<option>Probability</option>
+				<option>Random</option>
+				<option>Total traders</option>
+				<option>Volume</option>
+				<option>24 hour volume</option>
+				<option>Mixed</option>
+			</select>
+		</label>
+		<span id="mixingWeights">Mixing weights:
+			<label>Liquidity:
+				<input id="liquidityWeight" type="number" value="1" integral="true" min="-99" max="99"></input>
+			</label>
+			<label>Volume:
+				<input id="volumeWeight" type="number" value="1" integral="true" min="-99" max="99"></input>
+			</label>
+			<label>24 hour volume:
+				<input id="volume24HoursWeight" type="number" value="1" integral="true" min="-99" max="99"></input>
+			</label>
+			<label>Total traders:
+				<input id="totalTradersWeight" type="number" value="1" integral="true" min="-99" max="99"></input>
+			</label>
+			<label>Close time:
+				<input id="closeTimeWeight" type="number" value="0" integral="true" min="-99" max="99"></input>
+			</label>
+			<label>Created time:
+				<input id="createdTimeWeight" type="number" value="0" integral="true" min="-99" max="99"></input>
+			</label>
+			<label>Probability:
+				<input id="probabilityWeight" type="number" value="0" integral="true" min="-99" max="99"></input>
+			</label>
+			<label>Last updated:
+				<input id="lastUpdatedTimeWeight" type="number" value="0" integral="true" min="-99" max="99"></input>
+			</label>
+			<label>Creator:
+				<input id="creatorWeight" type="number" value="0" integral="true" min="-99" max="99"></input>
+			</label>
+			<label>Number of groups:
+				<input id="numGroupsWeight" type="number" value="0" integral="true" min="-99" max="99"></input>
+			</label>
+			<label>Random:
+				<input id="randomWeight" type="number" value="0" integral="true" min="-99" max="99"></input>
+			</label>
+		</span>
+
+		<br>
+
+		<label id="apiKeyLabel">API key:
+			<input id="apiKey"></input>
+		</label>
+
+		<br>
+
+		<div id="visibilityOptions">
+			<span><b>Visibility options:</b></span>
+			<label style="display:none">
+				<input type="checkbox" id="questionVisibility"></input>
+				Question
+			</label>
+			<label>
+				<input type="checkbox" id="descriptionVisibility"></input>
+				Description
+			</label>
+			<label>
+				<input type="checkbox" id="groupsVisibility"></input>
+				Groups
+			</label>
+			<label>
+				<input type="checkbox" id="creatorVisibility"></input>
+				Creator
+			</label>
+			<label>
+				<input type="checkbox" id="closeTimeVisibility"></input>
+				Close time
+			</label>
+			<label>
+				<input type="checkbox" id="liquidityVisibility"></input>
+				Liquidity
+			</label>
+			<label>
+				<input type="checkbox" id="volumeVisibility"></input>
+				Volume
+			</label>
+			<label>
+				<input type="checkbox" id="volume24HoursVisibility"></input>
+				24 hour volume
+			</label>
+			<label>
+				<input type="checkbox" id="totalTradersVisibility"></input>
+				Total traders
+			</label>
+			<label>
+				<input type="checkbox" id="lastUpdatedTimeVisibility"></input>
+				Last updated
+			</label>
+			<label>
+				<input type="checkbox" id="percentageVisibility"></input>
+				Percentage
+			</label>
+			<label>
+				<input type="checkbox" id="dashboardVisibility"></input>
+				Dashboard
+			</label>
+			<label>
+				<input type="checkbox" id="bettingVisibility"></input>
+				Betting
+			</label>
+			<label>
+				<input type="checkbox" id="probabilityColor"></input>
+				Visual probability
+			</label>
+		</div>
+
+		<div id="resultsDiv">
+			<p id="loadingIndicator">Loading markets</p>
+			<p id="numResults"></p>
+			<button id="exportButton" onclick="exportResults()">Export</button>
+			<div id="searchResultsTitleBar" class="row"></div>
+			<div id="searchResults"></div>
+		</div>
+
+		<div id="exportDiv">
+			<h3>Export market data</h3>
+			<label>URLs
+				<input id="exportUrl" type="radio" name="exportRadio" onchange="exportResults()" checked></input>
+			</label>
+			<label>Questions
+				<input id="exportQuestion" type="radio" name="exportRadio" onchange="exportResults()"></input>
+			</label>
+			<label>IDs
+				<input id="exportId" type="radio" name="exportRadio" onchange="exportResults()"></input>
+			</label>
+			<textarea id="exportData" onclick="this.select()" readonly></textarea>
+			<button onclick="document.getElementById('exportDiv').style.display = 'none'">Close</button>
+		</div>
+
+	</body>
+</html>

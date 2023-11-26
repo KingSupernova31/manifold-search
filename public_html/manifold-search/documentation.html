@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<!-- Global site tag (gtag.js) - Google Analytics -->
+		<script async src="https://www.googletagmanager.com/gtag/js?id=UA-158947959-1"></script>
+		<script>
+		  window.dataLayer = window.dataLayer || [];
+		  function gtag(){dataLayer.push(arguments);}
+		  gtag('js', new Date());
+
+		  gtag('config', 'UA-158947959-1');
+		</script>
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Manifold Search Documentation</title>
+
+		<link rel="stylesheet" href="/globalResources/globalcss.css">
+		<script defer src="/globalResources/globaljs&html.js"></script>
+		<link rel="stylesheet" href="/globalResources/articlecss.css">
+		<script defer src="/globalResources/articlejs&html.js"></script>
+
+		<link rel="stylesheet" href="styles.css">
+		<script>const linkifyCardNames = false;</script>
+	</head>
+	<body>
+		<div id="articleContent">
+
+		<h1>Manifold Search Documentation</h1>
+
+		<p><a href=".">Back to search page</a></p>
+
+		<h3>Text searches</h3>
+
+		<p>Punctuation marks, diacritics, and whitespace in market questions, descriptions, groups, and answers are ignored. Spaces can be used in the search fields to separate different search strings. If you want a character-exact search, put it in double-quotes.</p>
+
+		<p>For example, if you search for <quote>transwoman</quote>, that will match any of: <quote>transwoman</quote>, <quote>trans woman</quote>, and <quote>trans-woman</quote>. If you search for <quote>trans woman</quote>, that will match the same things, plus something like <quote>who was the first woman to make a trans-Atlantic flight?</quote> If you only want to match the one-word form, search for <quote>"transwoman"</quote>, with the quotes.</p>
+
+		<p>Search terms (either individual words or quoted strings) can be negated with a minus sign. Searching for <quote>trans -women</quote> will display only markets that include "trans" and do not include "woman". <quote>-"trans -woman"</quote> will display only markets that do not include "trans -woman".</p>
+
+		<p>The "any" field searches all text that's a part of the market: title, description, and answers. It does not include creator username or groups.</p>
+
+		<p>You can click on any username or group in the results table to filter the current search down to only that creator/group.</p>
+
+		<h3>Numerical searches</h3>
+
+		<p>Numerical market data can be filtered by range. For example, you can enter <quote>30-40, 60-70</quote> in the "percentage" field to see any markets that have a percentage in other of those ranges. (Single numbers are also acceptable, though note that extremely few markets will be at an exact integer percentage.)</p>
+
+		<p>Temporal fields like close time and creation time can be entered in the yyyy/mm/dd format. (The site will do its best to recognize if you meant day/month/year or month/day/year, but this isn't reliable for dates like "01/01/01". For the current year, you can just enter mm/dd and it will fill in the year for you.)</p>
+
+		<p>You can also enter a number of time intervals denoted with single letters, to be interpreted relative to the current time. Creation time and last updated time default to the past, close time defaults to the future. To reference the present, you can enter "0" or "now". For example, if you enter <quote>now - 5h30m</quote> into the close time field, it will display all markets that are currently open and close in the next five and a half hours.</p>
+
+		<h3>Sorting</h3>
+
+		<p>You can choose how the markets are sorted with the "sort by" dropdown menu. If you'd like a more complex sort order, select the "mixed" option and then specify how to weight each option. (Weights can be any integer, used to specify the proportional importance of that metric in the final sort order. They can be negative.) For example, if you want to see markets that are closing soon <i>and</i> have probabilities close to 50%, assign weight=1 to close time and weight=1 to probability, and leave the others at 0.</p>
+
+		<p>For convenience, you can click on a column title to sort by that column.</p>
+
+		<h3>Betting</h3>
+
+		<p>If you enable betting and enter your API key, you can place bets directly from the search page. The site will bet to the probability you input, using a maximum of the amount of mana you input. (Maximum defaults to 10% of market liquidity.)</p>
+
+		<p>It uses a limit order rather than a traditional bet, guaranteeing that another bet coming in right after you placed yours will not cause yours to "overshoot" your desired probability. (There is currently a Manifold bug that causes these limit orders to stick around for a few seconds rather than expiring immediately.)</p>
+
+		<p>You can find your API key by clicking <a href="https://manifold.markets/profile">here</a> and scrolling down to the bottom. If you're concerned about entrusting your API key to this tool, you can limit your potential losses by creating a second account on Manifold, transferring a set amount of mana to it, and inputting that account's API key instead. Also see <a href="https://manifold.markets/IsaacKing/will-i-misuse-any-api-key-entrusted">this market</a> about the likelihood of misuse.</p>
+
+		<h3>Loading</h3>
+
+		<p>It will take a few seconds to load all markets when the page first loads, but you can still perform searches in the mean time. (Markets that you're more likely to want to see are loaded first.) Market data is updated live as it changes on Manifold, you don't have to reload the page or repeat the search if you want to see new results.</p>
+
+		<p>New market creation and changes to an existing market's probability are reflected within about 20 seconds on average. Edits to a market's title or description will only update after several hours, due to bug in Manifold's API.</p>
+
+		<p>Note that every time you load the search page it fetches over 70MB of data, so you probably don't want to do it on a limited mobile connection.</p>
+
+		<h3>Fancy programmer stuff</h3>
+
+		<p>Query strings are supported; as you modify your search, the URL will update automatically. You can copy that URL and send it to someone else, and they'll be shown the same search that you're looking at.</p
+
+		<p>If you're using a browser's custom search engine feature, you can specify lucky=t to take you directly to the top result. Chrome and Firefox's custom search engine settings only allow you to enter a single modifiable parameter, so if you want to use multiple fields, you can input the URL string you would otherwise have used as a single "justshoveitallintooneparameter" parameter.</p>
+
+		<p>You can perform custom searches using the "custom" field. Enter a snippet of Javascript code that references the properties of the "market" object, and evaluates to true or false. Only markets for which the code evaluates to true will be displayed. For example, entering <quote>/^How/.test(market.question)</quote> will display only markets whose title begins with the word "How", and <quote>market.question.includes(market.creatorUsername)</quote> will display all markets whose title includes their creator's username.</p>
+
+		<p>The full list of market properties is: id, question, description, closeTime, createdTime, slug, liquidity, probability, creatorUsername, groups, answers, lastUpdatedTime, resolution, volume, volume24Hours, totalTraders, and type. Formatting of these properties is as fetched from the <a href="https://manifold.markets/api">Manifold API</a>, with <a href="maintainMarketData.js">a few modifications</a> to simplify things. (Look at the formatApiData function on that page.) To see a specific example, open the Javascript console on the search page and run <quote>currentMarketArray[0]</quote>.</p>
+
+		<p>To debug your code, you can open the Javascript console and will see any error messages displayed there. (Only the first error message for each search is logged, the others are discarded.) Note that you can easily freeze the page if you enter a computationally-intensive function; remember it's getting run on potentially tens of thousands of markets. Also, if your function mutates any of the market data, that could break all your future searches. (If you corrupt your local copy of market data, the corruption will persist upon page reload. You'll need to go into your browser settings to clear all site data, then try again. Clearing your cookies will not suffice, you need to clear <i>all</i> site data.) Use this field at your own risk.</p>
+
+		<h3>Misc</h3>
+
+		<p>I add features to this page upon request. You can submit suggestions in <a href="https://manifold.markets/IsaacKing/what-changes-to-my-manifold-dashboa">this market</a>, or by <a href="/#contact">contacting me</a> some other way. I'm happy to add/change even minor things, I just want to know that <i>someone</i> cares before I bother.</p>
+
+		<p>If you found this tool useful, consider <a href="https://manifold.markets/IsaacKing?tab=managrams&a=1000">donating</a> some fraction of the mana it helped you earn, to support further development.</p>
+
+		</div>
+	</body>
+</html>
