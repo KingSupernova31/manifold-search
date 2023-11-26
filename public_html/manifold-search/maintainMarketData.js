@@ -251,6 +251,8 @@ Cyclically go through all liteMarkets from /markets, 1000 at a time. Any that ar
 
 Once per 10ms, if queuedMarketQueries has <3 markets, bring it up to 5, slowly going through all markets to catch any changes that everything else missed. (Right now that's all description changes, since a bug on Manifold causes that to not affect their lastUpdatedTime. Once that's fixed this will still be necessary for the cases where this script changes what it saves from the request, so that it can rebuild old markets.)
 
+Once every 2 seconds, add an unlisted market to the queue.
+
 */
 
 //Keep recently changed markets to last 15 seconds and write to file.
@@ -422,5 +424,7 @@ setInterval(function() {
 		}
 		console.log(`Cycled through all ${unlistedMarketsToCheck.length} unlisted markets, restarting.`);
 	}
-	addMarketIdToQueue(unlistedMarketsToCheck.pop());
+	if (unlistedMarketsToCheck.length > 0) {
+		addMarketIdToQueue(unlistedMarketsToCheck.pop());
+	}
 }, 2000);
