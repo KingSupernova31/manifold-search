@@ -39,28 +39,4 @@ app.post("/manifoldBettingMirror", cors(corsOptions), async function(req, res) {
 		console.error(e);
 		res.send({"error": "Server error"});
 	}
-	try {
-		queueMarketUpdate(req.body.contractId);
-	} catch (e) {
-		console.error(e);
-	}
-});
-
-const queueMarketUpdate = function(marketId) {
-	const userEditedMarkets = JSON.parse(fs.readFileSync("./public_html/manifold-search/userEditedMarkets.json", "utf8"));
-	userEditedMarkets.push({
-		"id": marketId,
-		"time": Date.now(),
-	});
-	fs.writeFileSync("./public_html/manifold-search/userEditedMarkets.json", JSON.stringify(userEditedMarkets));
-}
-
-app.post("/updateMarket", function(req, res) {
-	try {
-		queueMarketUpdate(req.body.marketId);
-		res.send("Success!");
-	} catch (e) {
-		console.error(e);
-		res.send(e);
-	}
 });
