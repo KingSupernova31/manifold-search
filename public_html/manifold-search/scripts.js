@@ -1031,15 +1031,6 @@ const createRow = function(market) {
 
 	const question = document.createElement("a");
 	question.classList.add("questionVisibility");
-	question.addEventListener("click", function() {
-		tellServerToUpdateMarket(market.id);
-	});
-	question.addEventListener("auxclick", function() {
-		tellServerToUpdateMarket(market.id);
-	});
-	question.addEventListener("contextmenu", function() {
-		tellServerToUpdateMarket(market.id);
-	});
 	row.appendChild(question);
 
 	const description = document.createElement("p");
@@ -1097,7 +1088,6 @@ const createRow = function(market) {
 			if (dashboardButton.textContent === "Add") {
 				dashboard.push(market.id);
 				localStorage.setItem("marketDashboard", JSON.stringify(dashboard));
-				tellServerToUpdateMarket(market.id);
 				dashboardButton.textContent = "Remove";
 			} else {
 				dashboard.splice(dashboard.indexOf(market.id), 1);
@@ -1456,7 +1446,7 @@ const loop = async function() {
 		}
 	}
 }
-//loop();
+loop();
 
 document.getElementById("searchCriteria").addEventListener("input", function(event) {
 	uiControlFlow("filtersChanged");
@@ -1515,6 +1505,7 @@ const fetchNetworkMarketsInChunks = async function() {
 	for await (const chunk of response.body) {
 		networkLoadingWorker.postMessage(chunk);
 	}
+	networkLoadingWorker.postMessage("all done");
 }
 const fetchFileSystemMarketsInChunks = async function() {
 	const opfsRoot = await navigator.storage.getDirectory();
@@ -1548,7 +1539,7 @@ const handleReturnedChunkOfMarkets = async function(data, origin) {
 	if (data.length > 0) {
 		uiControlFlow("marketsChanged", data);
 	}
-	console.log(`Loaded ${data.length} markets from the ${origin}.`);
+	//console.log(`Loaded ${data.length} markets from the ${origin}.`);
 	createDatalists();
 }
 
@@ -1589,26 +1580,6 @@ document.getElementById("clear").addEventListener("click", function() {
 	}
 	uiControlFlow("filtersChanged");
 });
-
-const tellServerToUpdateMarket = async function(marketId) {//findthis this isn't being used right now, left around in case we reuse for groups updating.
-	return;
-	const response = await fetch('/updateMarket', {
-		method: 'POST',
-		body: JSON.stringify({"marketId": marketId}),
-		headers: {
-					'Content-Type': 'application/json',
-			}
-	});
-	return response;
-}
-
-const casheDashboard = async function() {
-	for (let market of dashboard) {
-		await tellServerToUpdateMarket(market.id);
-	}
-}
-setInterval(casheDashboard, 240000);
-casheDashboard();
 
 const convertHumanDateToTimestamp = function(string) {
 	string = string.trim().toLowerCase();
