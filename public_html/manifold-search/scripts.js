@@ -50,6 +50,21 @@ const tiebreakerComparisonFunction = function(result, a, b) {
 	}
 }
 
+//Polyfill for Chrome not supporting for await...of iteration of a ReadableStream, from https://bugs.chromium.org/p/chromium/issues/detail?id=929585
+ReadableStream.prototype[Symbol.asyncIterator] = async function* () {
+  const reader = this.getReader()
+  try {
+    while (true) {
+      const {done, value} = await reader.read()
+      if (done) return
+      yield value
+    }
+  }
+  finally {
+    reader.releaseLock()
+  }
+}
+
 //The settingId, object key, and element ID in the HTML are all the same.
 const allSettingsData = {
 	"volumeWeight": {
@@ -477,12 +492,6 @@ const allSettingsData = {
 	},
 }
 
-for (let id in allSettingsData) {
-	if (allSettingsData[id].defaultValue === true) {
-		document.getElementById(id).checked = true;
-	}
-}
-
 const updateSortingOptionValues = function() {
 	const allSortingWeights = Object.values(allSettingsData).filter(field => field.type === "sortingWeight");
 	for (let weight of allSortingWeights) {
@@ -634,8 +643,6 @@ const updateCssForTableVisibility = function() {
 }
 updateCssForTableVisibility();
 
-let allLocalMarketsLoaded = false;
-
 const updateVisibilityOptions = function() {
 	visualProbability = document.getElementById("probabilityColor").checked;
 
@@ -647,7 +654,6 @@ const updateVisibilityOptions = function() {
 	allSettingsData.dashboardVisibility.currentValue ? document.getElementById("dashboardLabel").style.display = "inline" : document.getElementById("dashboardLabel").style.display = "none";
 	allSettingsData.bettingVisibility.currentValue ? document.getElementById("apiKeyLabel").style.display = "inline" : document.getElementById("apiKeyLabel").style.display = "none";
 }
-updateVisibilityOptions();
 
 let dashboard = [];//List of market IDs.
 		dashboardOn = false;
@@ -748,9 +754,6 @@ const mixedSort = function(markets) {
 	//console.log(`Sorted ${markets.length} markets in ${performance.now() - startTime}ms`)
 }
 
-//Takes in each chunk of loaded data and returns parsed markets in an array, with noramlized fields.
-const internetLoadingWorker = new Worker("internetLoadingWorker.js");
-
 const filterMarkets = function() {
 	if (dashboardOn) {
 		const marketIds = Object.keys(allMarketData);
@@ -780,41 +783,13 @@ const filterMarkets = function() {
 				elementTerms.push(...words.map(string => ({"type": "normalized", "negated": string.startsWith("-"), "string": normalizeString(string)})));
 			} else if (entryField.inputFormat === "numericalRange") {
 				entryField.currentValue = document.getElementById(entryField.settingId).value;
-
+				const ranges = parseRangesFromNumberInput(entryField.currentValue, ["closeTime", "createdTime"].includes(entryField.settingId));
 				const elementTerms = searchTerms[entryField.settingId] = [];
-				//Without the filter it'll create an empty range.
-				const ranges = entryField.currentValue.replaceAll(" ", "").replaceAll("%", "").split(",").filter(range => range !== "");
 				for (let i in ranges) {
-					if (ranges[i].includes("-")) {
-						const subranges = ranges[i].split("-");
-						if (["closeTime", "createdTime", "lastUpdatedTime"].includes(entryField.settingId)) {
-							subranges[0] = convertHumanDateToTimestamp(subranges[0], entryField.settingId === "closeTime");
-							subranges[1] = convertHumanDateToTimestamp(subranges[1], entryField.settingId === "closeTime");
-						} else {
-							subranges[0] = Number(subranges[0]);
-							subranges[1] = Number(subranges[1]);
-						}
-						ranges[i] = {
-							"min": subranges[0],
-							"max": subranges[1],
-						}
-					} else {
-						let num;
-						if (["closeTime", "createdTime", "lastUpdatedTime"].includes(entryField.settingId)) {
-							num = convertHumanDateToTimestamp(ranges[i], entryField.settingId === "closeTime");
-						} else {
-							num = Number(ranges[i]);
-						}
-						ranges[i] = {
-							"min": num,
-							"max": num,
-						}
-					}
-				}
-				if (entryField.settingId === "percentage") {
-					for (let i in ranges) {
-						ranges[i].min = ranges[i].min / 100;
-						ranges[i].max = ranges[i].max / 100;
+					ranges[i].min = parseTypeOfNumericalInput(ranges[i].min, "min", entryField.settingId);
+					ranges[i].max = parseTypeOfNumericalInput(ranges[i].max, "max", entryField.settingId);
+					if (ranges[i].max < ranges[i].min) {
+						throw new Error(`Invalid numerical entry for ${entryField.settingId}; max less than min`);
 					}
 				}
 				elementTerms.push(...ranges);
@@ -847,11 +822,11 @@ const filterMarkets = function() {
 			if (settingId === "numGroups") {
 				markets = markets.filter(function(market) {
 					for (let numGroupsSearchTerm of searchTerms.numGroups) {
-						if (market.groups.length < numGroupsSearchTerm.min || market.groups.length > numGroupsSearchTerm.max) {
-							return false;
+						if (market.groups.length >= numGroupsSearchTerm.min && market.groups.length <= numGroupsSearchTerm.max) {
+							return true;
 						}
 					}
-					return true;
+					return false;
 				});
 			} else {
 				let settingName = settingId;
@@ -860,15 +835,15 @@ const filterMarkets = function() {
 				}
 
 				markets = markets.filter(function(market) {
-					for (let elementSearchTerm of searchTerms[settingId]) {
-						if (market[settingName] < elementSearchTerm.min || market[settingName] > elementSearchTerm.max) {
-							return false;
-						}
-						if (!market.hasOwnProperty(settingName)) {
-							return false;//Some markets don't have a close time or percentage, and those shouldn't show up in searches for those qualities.
+					if (!market.hasOwnProperty(settingName)) {
+						return false;//Some markets don't have a close time or percentage, and those shouldn't show up in searches for those qualities.
+					}
+					for (let range of searchTerms[settingId]) {
+						if (market[settingName] >= range.min && market[settingName] <= range.max) {
+							return true;
 						}
 					}
-					return true;
+					return false;
 				});
 			}
 		}
@@ -940,7 +915,7 @@ const filterMarkets = function() {
 		let customFuction;
 		let errored = false;
 		try {
-			customFuction = eval(`(function(market) {${searchTerms.custom}})`);
+			customFuction = eval(`(function(market) {return ${searchTerms.custom}})`);
 		} catch (e) {
 			console.error(`Error parsing script. Message: "${e.message}"`);
 			errored = true;
@@ -955,7 +930,7 @@ const filterMarkets = function() {
 				} catch (e) {
 					console.error(`Error evaluating script. Message: "${e.message}" Market object follows:`);
 					console.log(market);
-					errorShown = true;
+					errored = true;
 					return false;
 				}
 			});
@@ -1437,7 +1412,7 @@ savingWorker.onmessage = async function(message) {
 	await writable.write(message.data.fileSystem);
 	await writable.close();
 
-	console.log(`Saved ${message.data.localStorage.length / 1000} kb to localStorage`);
+	console.log(`Saved ${message.data.localStorage.length / 1000000}MB to localStorage, ${message.data.fileSystem.length / 1000000}MB to the file system`);
 }
 
 const grabUpdates = async function() {
@@ -1481,63 +1456,7 @@ const loop = async function() {
 		}
 	}
 }
-loop();
-
-let queryParams = parseQueryString(window.location.href);
-if (queryParams.justshoveitallintooneparameter) {
-	queryParams = parseQueryString("https://outsidetheasylum.blog/manifold-search/?" + queryParams.justshoveitallintooneparameter);
-}
-let defaultLiquidityTo1 = true;
-for (let entryField of Object.values(allSettingsData)) {
-	if (entryField.type === "sortingWeight" && queryParams.hasOwnProperty(entryField.settingId)) {
-		defaultLiquidityTo1 = false;
-		queryParams[entryField.settingId] = Number(queryParams[entryField.settingId]);
-	}
-}
-if (defaultLiquidityTo1) {
-	queryParams.liquidityWeight = 1;
-}
-for (let param of ["question", "description", "groups", "answers", "any", "custom", "type"]) {
-	if (queryParams[param]) {
-		document.getElementById(param).value = queryParams[param].replace(/\+/g, " ");
-	}
-}
-if (queryParams.creator) {
-	document.getElementById("creator").value = queryParams.creator.replace(/\+/g, " ");
-}
-if (queryParams.open) {
-	document.getElementById("open").checked = ["t", "true"].includes(queryParams.open);
-}
-if (queryParams.closed) {
-	document.getElementById("closed").checked = ["t", "true"].includes(queryParams.closed);
-}
-if (queryParams.resolved) {
-	document.getElementById("resolved").checked = ["t", "true"].includes(queryParams.resolved);
-}
-updateSortingOptionDisplay(queryParams);//The extra fields are ignored.
-updateSortingOptionValues();
-let lucky = false;
-if (queryParams.lucky && ["t", "true"].includes(queryParams.lucky)) {
-	lucky = true;
-}
-
-//Returns an array of normalized markets.
-const fileSystemLoadingWorker = new Worker("fileSystemLoadingWorker.js");
-fileSystemLoadingWorker.postMessage("begin");
-const fileSystemLoadingStartTime = performance.now();
-fileSystemLoadingWorker.onmessage = function(message) {
-	if (message.data === "no saved markets") {
-		console.log(`No saved markets found in ${performance.now() - fileSystemLoadingStartTime}ms`);
-	} else {
-		console.log(`Loaded ${Object.keys(message.data).length} saved markets from the file system in ${performance.now() - fileSystemLoadingStartTime}ms.`);
-		allLocalMarketsLoaded = true;
-		clearInterval(loadingInterval);
-		document.getElementById("loadingIndicator").style.display = "none";
-
-		uiControlFlow("marketsChanged", message.data);
-		createDatalists();
-	}
-}
+//loop();
 
 document.getElementById("searchCriteria").addEventListener("input", function(event) {
 	uiControlFlow("filtersChanged");
@@ -1587,86 +1506,57 @@ for (let entryField of Object.values(allSettingsData)) {
 	}
 }
 
+//Takes in each chunk of loaded data as a uint8array and returns parsed markets in an array, with normalized fields.
+const networkLoadingWorker = new Worker("jsonStreamLoadingWorker.js");
+const fileSystemLoadingWorker = new Worker("jsonStreamLoadingWorker.js");
 
-fetch("allMarketData.json")
-  .then((response) => response.body)
-  .then((rb) => {
-    const reader = rb.getReader();
+const fetchNetworkMarketsInChunks = async function() {
+	const response = await fetch("allMarketData.json");
+	for await (const chunk of response.body) {
+		networkLoadingWorker.postMessage(chunk);
+	}
+}
+const fetchFileSystemMarketsInChunks = async function() {
+	const opfsRoot = await navigator.storage.getDirectory();
+	const fileHandle = await opfsRoot.getFileHandle('savedMarketData', {create: true});
+	const file = await fileHandle.getFile();
+	const stream = await file.stream();
+	for await (const chunk of stream) {
+		fileSystemLoadingWorker.postMessage(chunk);
+	}
+	fileSystemLoadingWorker.postMessage("all done");
+}
+fetchNetworkMarketsInChunks();
+fetchFileSystemMarketsInChunks();
 
-    return new ReadableStream({
-      start(controller) {
-        // The following function handles each data chunk
-        function push() {
-          // "done" is a Boolean and value a "Uint8Array"
-          reader.read().then(({ done, value }) => {
-            // If there is no more data to read
-            if (done) {
-              controller.close();
-              return;
-            }
-            // Get the data and send it to the browser via the controller
-            controller.enqueue(value);
-
-            // Do something with the chunks
-						internetLoadingWorker.postMessage(value);
-
-            push();
-          });
-        }
-
-        push();
-      },
-    });
-  })
-  .then((stream) =>
-    // Respond with our stream
-    new Response(stream, { headers: { "Content-Type": "text/html" } }).text(),
-  )
-  .then((result) => {
-    // Do things with result
-		internetLoadingWorker.postMessage("all done");
-  });
-
-//The worker takes in each chunk of loaded data and returns parsed markets in an array, with normalized fields.
 let allRemoteMarketsLoaded = false;
-internetLoadingWorker.onmessage = async function(message) {
-	createDatalists();
-	if (message.data === "all done") {
-		console.log("All remote markets loaded");
-		allRemoteMarketsLoaded = true;
+let allLocalMarketsLoaded = false;
+const handleReturnedChunkOfMarkets = async function(data, origin) {
+	if (data === "all done") {
+		console.log(`All ${origin} markets loaded`);
+		if (origin === "network") {
+			allRemoteMarketsLoaded = true;
+		} else {
+			allLocalMarketsLoaded = true;
+		}
 		saveMarketData();
 		document.getElementById("loadingIndicator").style.display = "none";
 		clearInterval(loadingInterval);
 		return;
 	}
 
-	if (message.data.length > 0) {
-		uiControlFlow("marketsChanged", message.data);
+	if (data.length > 0) {
+		uiControlFlow("marketsChanged", data);
 	}
-
-	//console.log(`Loaded ${message.data.length} markets.`);
+	console.log(`Loaded ${data.length} markets from the ${origin}.`);
+	createDatalists();
 }
 
-const locallyStoredMarketDataString = localStorage.getItem("savedMarketData");
-if (locallyStoredMarketDataString) {
-	let loadedMarkets;
-	try {
-		loadedMarkets = JSON.parse(gzipToText(locallyStoredMarketDataString));
-		//Used to be saved as an object, this can be removed later.
-		if (!Array.isArray(loadedMarkets)) {
-			loadedMarkets = Object.values(loadedMarkets);
-		}
-	} catch (e) {
-		console.error(e);
-		loadedMarkets = [];
-	}
-	for (let market of loadedMarkets) {
-		addNormalizedFieldsToMarketData(market);
-	}
-	if (loadedMarkets.length > 0) {
-		uiControlFlow("marketsChanged", loadedMarkets);
-	}
-	console.log(`Loaded ${Object.keys(loadedMarkets).length} markets from localStorage`);
+networkLoadingWorker.onmessage = function(message) {
+	handleReturnedChunkOfMarkets(message.data, "network");
+}
+fileSystemLoadingWorker.onmessage = function(message) {
+	handleReturnedChunkOfMarkets(message.data, "fileSystem");
 }
 
 document.getElementById("mixingWeights").addEventListener("input", function() {
@@ -1689,11 +1579,9 @@ document.getElementById("sortOrder").addEventListener("change", function() {
 });
 
 document.getElementById("clear").addEventListener("click", function() {
-
 	for (let id in allSettingsData) {
 		const setting = allSettingsData[id];
 		if (setting.type === "searchOption") {
-			console.log(setting)
 			//Is this setting the value of some checkboxes and the checked status of some text inputs? Yes. Do I care? No.
 			document.getElementById(setting.settingId).value = setting.defaultValue;
 			document.getElementById(setting.settingId).checked = setting.defaultValue;
@@ -1722,9 +1610,17 @@ const casheDashboard = async function() {
 setInterval(casheDashboard, 240000);
 casheDashboard();
 
-const convertHumanDateToTimestamp = function(string, assumeFuture) {
+const convertHumanDateToTimestamp = function(string) {
 	string = string.trim().toLowerCase();
-	if (/^\d+[\/-]\d+([-\/]\d+)?$/.test(string)) {
+	let isNegative = false;
+	if (Number(string) === 0) {
+		return Date.now();
+	}
+	if (/^\d{1,4}([\/-]\d{1,4})?([-\/]\d{1,4})?$/.test(string)) {
+		if (string.startsWith("-")) {
+			isNegative = true;
+			string = string.slice(1);
+		}
 		const tellMonthFromDay = function(str1, str2) {//Defaults to 1st one is month if it can't tell.
 			let month, day;
 			if (Number(str1) > 12) {
@@ -1739,6 +1635,12 @@ const convertHumanDateToTimestamp = function(string, assumeFuture) {
 
 		let year, month, day;
 		const numStrings = string.split(/[/-]/);
+
+		if (numStrings.length === 1) {
+			year = new Date().getFullYear();
+			month = new Date().getMonth();
+			day = tellMonthFromDay(numStrings[0], numStrings[1])[1];
+		}
 
 		if (numStrings.length === 2) {
 			year = new Date().getFullYear();
@@ -1762,7 +1664,7 @@ const convertHumanDateToTimestamp = function(string, assumeFuture) {
 	}
 
 	if (/(\d+(\.\d+)?[lceymfwdhis])+/.test(string)) {
-		//This doesn't account for leap years, leap seconds, or differing month lengths. In order to not have unexpected results, we treat all months as 31 days and all years as leap years.
+		//This doesn't account for leap years, leap seconds, or differing month lengths. In order to not have unexpected near-term results, we treat all months as 31 days and all years as leap years. This does mean that searches further in the future than ~2150 can be off by a year or more, but we'll all be dead by then anyway.
 		const mapping = {
 			"l": 31557600000000,//Millenium
 			"c": 3155760000000,//Century
@@ -1790,15 +1692,91 @@ const convertHumanDateToTimestamp = function(string, assumeFuture) {
 			totalDistance += mapping[lastChar] * num;
 			previousChar = lastChar;
 		}
-		if (assumeFuture) {
-			return Date.now() + totalDistance;
-		} else {
+		if (isNegative) {
 			return Date.now() - totalDistance;
+		} else {
+			return Date.now() + totalDistance;
 		}
 	}
 
 	//If the input string is invalid, use the current time, cause why not. (In particular users are told they can enter "0" or "now" for the current time.)
 	return Date.now();
+}
+
+//Takes in a single string and outputs a collection of ranges. Each range is just one or two strings, type-dependent parsing is handled elsewhere.
+const parseRangesFromNumberInput = function(string, isTemporal) {
+
+	if (!isTemporal) {
+		string = string.replaceAll(/[$M]/g, "");
+	}
+
+	//Without the filter it'll create an empty range if the input was empty.
+	const ranges = string.replaceAll(/[% ]/g, "").split(",").filter(range => range !== "");
+
+	for (let i in ranges) {
+		let subranges;
+		if (isTemporal) {
+			subranges = ranges[i].split(":");
+		} else {
+			subranges = ranges[i].split(/[-:]/g);
+		}
+
+		if (subranges.length === 1) {
+			ranges[i] = {
+				"min": subranges[0].trim(),
+				"max": subranges[0].trim(),
+			}
+		} else if (subranges.length === 2) {
+			ranges[i] = {
+				"min": subranges[0].trim(),
+				"max": subranges[1].trim(),
+			}
+		} else {
+			throw new Error(`Invalid numerical entry; cannot determined ranges`);
+		}
+	}
+
+	return ranges;
+}
+
+const parseTypeOfNumericalInput = function(string, endOfScale, type) {
+	if (string.trim() === "") {
+		if (["closeTime", "createdTime", "lastUpdatedTime"].includes(type)) {
+			if (endOfScale === "min") {
+				return Number.MIN_SAFE_INTEGER;
+			} else {
+				return Number.MAX_SAFE_INTEGER;
+			}
+		} else if (type === "percentage") {
+			if (endOfScale === "min") {
+				return 0;
+			} else {
+				return 1;
+			}
+		} else {
+			if (endOfScale === "min") {
+				return 0;
+			} else {
+				return Number.MAX_SAFE_INTEGER;
+			}
+		}
+	}
+	let returnNum;
+	if (["closeTime", "createdTime", "lastUpdatedTime"].includes(type)) {
+		returnNum = convertHumanDateToTimestamp(string)
+	} else {
+		returnNum = Number(string);
+	}
+	if (type === "percentage") {
+		returnNum /= 100;
+		if (returnNum > 1) {
+			throw new Error(`Invalid numerical entry for ${type}; percentage cannot be more than 100`);
+		}
+	}
+	if (Number.isNaN(returnNum)) {
+		throw new Error(`Invalid numerical entry for ${type}; entry cannot be converted to a number`);
+	}
+	return returnNum;
 }
 
 const exportResults = function() {
@@ -1817,4 +1795,62 @@ const numMarketsInGroup = function(group) {
 }
 const numMarketsWithCreator = function(creator) {
 	return allMarketArray.filter(market => market.creatorUsername === creator).length;
+}
+
+let queryParams = parseQueryString(window.location.href);
+if (queryParams.justshoveitallintooneparameter) {
+	queryParams = parseQueryString("https://outsidetheasylum.blog/manifold-search/?" + queryParams.justshoveitallintooneparameter);
+}
+const paramsToSet = queryParams;
+for (let id in allSettingsData) {
+	const setting = allSettingsData[id];
+	if (!paramsToSet.hasOwnProperty(setting.settingId)) {
+		paramsToSet[setting.settingId] = setting.defaultValue;
+	}
+	if (typeof setting.defaultValue === "boolean") {
+		if (typeof paramsToSet[setting.settingId] !== "boolean") {
+			paramsToSet[setting.settingId] = ["t", "true"].includes(paramsToSet[setting.settingId]);
+		}
+		document.getElementById(setting.settingId).checked = paramsToSet[setting.settingId];
+	}
+	if (typeof setting.defaultValue === "number") {
+		paramsToSet[setting.settingId] = Number(paramsToSet[setting.settingId]);
+		document.getElementById(setting.settingId).value = paramsToSet[setting.settingId];
+	}
+	if (typeof setting.defaultValue === "string") {
+		paramsToSet[setting.settingId] = paramsToSet[setting.settingId].replace(/\+/g, " ");
+		document.getElementById(setting.settingId).value = paramsToSet[setting.settingId];
+	}
+}
+updateVisibilityOptions();
+updateSortingOptionDisplay(paramsToSet);//The extra fields are ignored.
+updateSortingOptionValues();
+uiControlFlow("visibilityChanged");
+
+let lucky = false;
+if (queryParams.lucky && ["t", "true"].includes(queryParams.lucky)) {
+	lucky = true;
+}
+
+
+const locallyStoredMarketDataString = localStorage.getItem("savedMarketData");
+if (locallyStoredMarketDataString) {
+	let loadedMarkets;
+	try {
+		loadedMarkets = JSON.parse(gzipToText(locallyStoredMarketDataString));
+		//Used to be saved as an object, this can be removed later.
+		if (!Array.isArray(loadedMarkets)) {
+			loadedMarkets = Object.values(loadedMarkets);
+		}
+	} catch (e) {
+		console.error(e);
+		loadedMarkets = [];
+	}
+	for (let market of loadedMarkets) {
+		addNormalizedFieldsToMarketData(market);
+	}
+	if (loadedMarkets.length > 0) {
+		uiControlFlow("marketsChanged", loadedMarkets);
+	}
+	console.log(`Loaded ${Object.keys(loadedMarkets).length} markets from localStorage`);
 }

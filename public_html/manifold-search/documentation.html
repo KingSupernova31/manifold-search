@@ -43,11 +43,11 @@
 
 		<h3>Numerical searches</h3>
 
-		<p>Numerical market data can be filtered by range. For example, you can enter <quote>30-40, 60-70</quote> in the "percentage" field to see any markets that have a percentage in other of those ranges. (Single numbers are also acceptable, though note that extremely few markets will be at an exact integer percentage.)</p>
+		<p>Numerical market data can be filtered by range, with multiple ranges separated by commas. For example, you can enter <quote>30:40</quote> in the "percentage" field to see any markets that have a percentage anywhere from 30% to 40%. Single numbers are also acceptable, though note that extremely few markets will be at an exact integer percentage. Leaving one end of the range empty defaults to the max/min; for example you can enter <quote>:1,99:</quote> to see any market that's equal or below 1% or equal or above 99%. (You can use "-" in place of ":" as long as it's not a date field.)</p>
 
-		<p>Temporal fields like close time and creation time can be entered in the yyyy/mm/dd format. (The site will do its best to recognize if you meant day/month/year or month/day/year, but this isn't reliable for dates like "01/01/01". For the current year, you can just enter mm/dd and it will fill in the year for you.)</p>
+		<p>Temporal fields like close time and creation time can be entered in the yyyy/mm/dd format. (Or yyyy-mm-dd.) The site will do its best to recognize if you meant day/month/year or month/day/year, but this <a href="https://xkcd.com/2562/">isn't reliable</a> for dates like "01/01/01", so it's best to stick to year/month/day <a href="https://xkcd.com/1179/">like civilized people</a>. Blank entries are defaulted to the current interval, e.g. "03/23" means March 23 of the current year, and "10" means the 10th of the current year and current month.</p>
 
-		<p>You can also enter a number of time intervals denoted with single letters, to be interpreted relative to the current time. Creation time and last updated time default to the past, close time defaults to the future. To reference the present, you can enter "0" or "now". For example, if you enter <quote>now - 5h30m</quote> into the close time field, it will display all markets that are currently open and close in the next five and a half hours.</p>
+		<p>You can also enter a number of time intervals denoted with single letters, to be interpreted relative to the current time, with an optional negative sign to refer to the past. To reference the present, you can enter "0" or "now". For example, if you enter <quote>-5h30m:now</quote> into the creation time field, it will display all markets that were created in the past five and a half hours.</p>
 
 		<h3>Sorting</h3>
 
@@ -73,9 +73,9 @@
 
 		<h3>Fancy programmer stuff</h3>
 
-		<p>Query strings are supported; as you modify your search, the URL will update automatically. You can copy that URL and send it to someone else, and they'll be shown the same search that you're looking at.</p
+		<p>Query strings are supported; as you modify your search, the URL will update automatically. You can copy that URL and send it to someone else, and they'll be shown the same search that you're looking at.</p>
 
-		<p>If you're using a browser's custom search engine feature, you can specify lucky=t to take you directly to the top result. Chrome and Firefox's custom search engine settings only allow you to enter a single modifiable parameter, so if you want to use multiple fields, you can input the URL string you would otherwise have used as a single "justshoveitallintooneparameter" parameter.</p>
+		<p>If you're using a browser's custom search engine feature, you can specify lucky=true to take you directly to the top result. Chrome and Firefox's custom search engine settings only allow you to enter a single modifiable parameter, so if you want to use multiple fields, you can input the URL string you would otherwise have used as a single "justshoveitallintooneparameter" parameter. For all boolean values, you can use "t" and "f" instead of "true" and "false".</p>
 
 		<p>You can perform custom searches using the "custom" field. Enter a snippet of Javascript code that references the properties of the "market" object, and evaluates to true or false. Only markets for which the code evaluates to true will be displayed. For example, entering <quote>/^How/.test(market.question)</quote> will display only markets whose title begins with the word "How", and <quote>market.question.includes(market.creatorUsername)</quote> will display all markets whose title includes their creator's username.</p>
 

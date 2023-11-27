@@ -20,7 +20,7 @@ onmessage = function(message) {
 
 	const returnObj = {
 		"localStorage": textToGzip(JSON.stringify(localStorage)),
-		"fileSystem": textToGzip(JSON.stringify(fileSystem)),
+		"fileSystem": JSON.stringify(fileSystem),
 	};
 
 	postMessage(returnObj);
