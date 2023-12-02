@@ -1,4 +1,6 @@
 const marketLimit = 200;
+const randomSeed = Math.floor(Math.random() * 20);
+let verbose = false;
 
 const currentSettingsToUrl = function() {
 	let params = [];
@@ -9,23 +11,6 @@ const currentSettingsToUrl = function() {
 	}
 	let str = window.location.origin + window.location.pathname;
 	return params.length > 0 ? str + "?" + params.join("&") : str;
-}
-
-//Array randomizer. Shuffles in place.
-const shuffle = function(array) {
-  let currentIndex = array.length, temporaryValue, randomIndex;
-  // While there remain elements to shuffle...
-  while (0 !== currentIndex) {
-
-    // Pick a remaining element...
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex -= 1;
-
-    // And swap it with the current element.
-    temporaryValue = array[currentIndex];
-    array[currentIndex] = array[randomIndex];
-    array[randomIndex] = temporaryValue;
-  }
 }
 
 const searchResultsTitleBar = document.getElementById("searchResultsTitleBar");
@@ -72,12 +57,11 @@ const allSettingsData = {
 		"settingId": "volumeWeight",
 		"humanReadableName": "Volume",
 		"currentValue": 0,
-		"sortingFunction": function(markets, weight) {
-			foo = 0, bar = 0;
+		"comparisonFunctionMaker": function(weight) {
 			const valueIfUndefined = weight > 0 ? 1 : 999999999999;
-			markets.sort(function(a, b) {
+			return function(a, b) {
 				return tiebreakerComparisonFunction((b.hasOwnProperty("volume") ? b.volume : valueIfUndefined) - (a.hasOwnProperty("volume") ? a.volume : valueIfUndefined), a, b);
-			});
+			}
 		},
 		"defaultValue": 0,
 	},
@@ -86,12 +70,11 @@ const allSettingsData = {
 		"settingId": "volume24HoursWeight",
 		"humanReadableName": "24 hour volume",
 		"currentValue": 0,
-		"sortingFunction": function(markets, weight) {
-			foo = 0, bar = 0;
+		"comparisonFunctionMaker": function(weight) {
 			const valueIfUndefined = weight > 0 ? 1 : 999999999999;
-			markets.sort(function(a, b) {
+			return function(a, b) {
 				return tiebreakerComparisonFunction((b.hasOwnProperty("volume24Hours") ? b.volume24Hours : valueIfUndefined) - (a.hasOwnProperty("volume24Hours") ? a.volume24Hours : valueIfUndefined), a, b);
-			});
+			};
 		},
 		"defaultValue": 0,
 	},
@@ -100,12 +83,11 @@ const allSettingsData = {
 		"settingId": "totalTradersWeight",
 		"humanReadableName": "Total traders",
 		"currentValue": 0,
-		"sortingFunction": function(markets, weight) {
-			foo = 0, bar = 0;
+		"comparisonFunctionMaker": function(weight) {
 			const valueIfUndefined = weight > 0 ? 1 : 999999999999;
-			markets.sort(function(a, b) {
+			return function(a, b) {
 				return tiebreakerComparisonFunction((b.hasOwnProperty("totalTraders") ? b.totalTraders : valueIfUndefined) - (a.hasOwnProperty("totalTraders") ? a.totalTraders : valueIfUndefined), a, b);
-			});
+			};
 		},
 		"defaultValue": 0,
 	},
@@ -114,12 +96,11 @@ const allSettingsData = {
 		"settingId": "liquidityWeight",
 		"humanReadableName": "Liquidity",
 		"currentValue": 1,
-		"sortingFunction": function(markets, weight) {
-			foo = 0, bar = 0;
+		"comparisonFunctionMaker": function(weight) {
 			const valueIfUndefined = weight > 0 ? 1 : 999999999999;
-			markets.sort(function(a, b) {
+			return function(a, b) {
 				return tiebreakerComparisonFunction((b.hasOwnProperty("liquidity") ? b.liquidity : valueIfUndefined) - (a.hasOwnProperty("liquidity") ? a.liquidity : valueIfUndefined), a, b);
-			});
+			};
 		},
 		"defaultValue": 1,
 	},
@@ -128,11 +109,11 @@ const allSettingsData = {
 		"settingId": "closeTimeWeight",
 		"humanReadableName": "Close time",
 		"currentValue": 0,
-		"sortingFunction": function(markets, weight) {
+		"comparisonFunctionMaker": function(weight) {
 			const valueIfUndefined = weight > 0 ? 8640000000000000 : -8640000000000000;
-			markets.sort(function(a, b) {
+			return function(a, b) {
 				return tiebreakerComparisonFunction((a.hasOwnProperty("closeTime") ? a.closeTime : valueIfUndefined) - (b.hasOwnProperty("closeTime") ? b.closeTime : valueIfUndefined), a, b);
-			});
+			};
 		},
 		"defaultValue": 0,
 	},
@@ -141,11 +122,11 @@ const allSettingsData = {
 		"settingId": "createdTimeWeight",
 		"humanReadableName": "Created time",
 		"currentValue": 0,
-		"sortingFunction": function(markets, weight) {
+		"comparisonFunctionMaker": function(weight) {
 			const valueIfUndefined = weight > 0 ? -8640000000000000 : 8640000000000000;
-			markets.sort(function(a, b) {
+			return function(a, b) {
 				return tiebreakerComparisonFunction((b.hasOwnProperty("createdTime") ? b.createdTime : valueIfUndefined) - (a.hasOwnProperty("createdTime") ? a.createdTime : valueIfUndefined), a, b);
-			});
+			};
 		},
 		"defaultValue": 0,
 	},
@@ -154,8 +135,8 @@ const allSettingsData = {
 		"settingId": "creatorWeight",
 		"humanReadableName": "Creator",
 		"currentValue": 0,
-		"sortingFunction": function(markets, weight) {
-			markets.sort(function(a, b) {
+		"comparisonFunctionMaker": function(weight) {
+			return function(a, b) {
 				let result = 0;
 				if (a.creatorUsername > b.creatorUsername) {
 					result = 1;
@@ -164,7 +145,7 @@ const allSettingsData = {
 					result = -1;
 				}
 				return tiebreakerComparisonFunction(result, a, b);
-			});
+			};
 		},
 		"defaultValue": 0,
 	},
@@ -173,13 +154,13 @@ const allSettingsData = {
 		"settingId": "probabilityWeight",
 		"humanReadableName": "Probability",
 		"currentValue": 0,
-		"sortingFunction": function(markets, weight) {
+		"comparisonFunctionMaker": function(weight) {
 			const valueIfUndefined = weight > 0 ? 0 : 0.5;
-			markets.sort(function(a, b) {
+			return function(a, b) {
 				const aEffectiveProb = a.hasOwnProperty("probability") ? a.probability : valueIfUndefined;
 				const bEffectiveProb = b.hasOwnProperty("probability") ? b.probability : valueIfUndefined;
 				return tiebreakerComparisonFunction(Math.abs(0.5 - aEffectiveProb) - Math.abs(0.5 - bEffectiveProb), a, b);
-			});
+			};
 		},
 		"defaultValue": 0,
 	},
@@ -188,10 +169,10 @@ const allSettingsData = {
 		"settingId": "numGroupsWeight",
 		"humanReadableName": "Number of groups",
 		"currentValue": 0,
-		"sortingFunction": function(markets, weight) {
-			markets.sort(function(a, b) {
+		"comparisonFunctionMaker": function(weight) {
+			return function(a, b) {
 				return tiebreakerComparisonFunction(a.groups.length - b.groups.length, a, b);
-			});
+			};
 		},
 		"defaultValue": 0,
 	},
@@ -200,8 +181,18 @@ const allSettingsData = {
 		"settingId": "randomWeight",
 		"humanReadableName": "Random",
 		"currentValue": 0,
-		"sortingFunction": function(markets, weight) {
-			shuffle(markets);
+		"comparisonFunctionMaker": function(weight) {
+			return function(a, b) {
+				const aValue = a.id.slice(randomSeed) + a.id.slice(0, randomSeed);
+				const bValue = b.id.slice(randomSeed) + b.id.slice(0, randomSeed);
+				if (aValue > bValue) {
+					return 1;
+				}
+				if (aValue === bValue) {
+					return 0;
+				}
+				return -1;
+			}
 		},
 		"defaultValue": 0,
 	},
@@ -210,11 +201,11 @@ const allSettingsData = {
 		"settingId": "lastUpdatedTimeWeight",
 		"humanReadableName": "Last updated",
 		"currentValue": 0,
-		"sortingFunction": function(markets, weight) {
+		"comparisonFunctionMaker": function(weight) {
 			const valueIfUndefined = weight > 0 ? 8640000000000000 : -8640000000000000;
-			markets.sort(function(a, b) {
+			return function(a, b) {
 				return tiebreakerComparisonFunction((a.hasOwnProperty("lastUpdatedTime") ? a.lastUpdatedTime : valueIfUndefined) - (b.hasOwnProperty("lastUpdatedTime") ? b.lastUpdatedTime : valueIfUndefined), a, b);
-			});
+			};
 		},
 		"defaultValue": 0,
 	},
@@ -492,6 +483,77 @@ const allSettingsData = {
 	},
 }
 
+//Stores a reference to each market object sorted by the relevant sorting function assuming a weight of 1 and one assuming a weight of -1.
+const presortedArrays = {};
+for (let setting of Object.values(allSettingsData)) {
+	if (setting.type === "sortingWeight") {
+		presortedArrays[setting.settingId] = {
+			"positive": {
+				"array": [],
+				"pendingItems": [],
+			},
+			"negative": {
+				"array": [],
+				"pendingItems": [],
+			},
+		};
+	}
+};
+
+const insertMultipleItemsIntoSortedArray = function(items, array, comparitorFunction) {
+	const sortedCopy = items.toSorted(comparitorFunction);
+	const tempArray = [];
+	while (array.length > 0 || sortedCopy.length > 0) {
+		if (sortedCopy.length === 0) {
+			tempArray.push(array.pop());
+		} else if (array.length === 0) {
+			tempArray.push(sortedCopy.pop());
+		} else if (comparitorFunction(array[array.length - 1], sortedCopy[sortedCopy.length - 1]) < 0) {
+			tempArray.push(sortedCopy.pop());
+		} else {
+			tempArray.push(array.pop());
+		}
+	}
+	while (tempArray.length > 0) {
+		array.push(tempArray.pop());
+	}
+}
+
+const removeMarketsWithSameIdFromPresortedArrays = function(array, marketsToRemove) {
+	for (let market of marketsToRemove) {
+		for (let i in array) {
+			if (market.id === array[i].id) {
+				array.splice(i, 1);
+				break;
+			}
+		}
+	}
+}
+
+const insertIntoPresortedArrays = function(marketsToInsert, marketsToResort) {
+
+	const sortingWeights = Object.values(allSettingsData).filter(setting => setting.type === "sortingWeight");
+
+	for (let weight of sortingWeights) {
+		if (weight.currentValue !== 0) {//We only presort ones that are in use. If the sorting weights change, mixedSort calls this again with the new weights.
+			const presortedArrayObj = presortedArrays[weight.settingId];
+
+			for (let sign of ["positive", "negative"]) {
+				removeMarketsWithSameIdFromPresortedArrays(presortedArrayObj[sign].array, marketsToResort);
+
+				const totalMarkets = marketsToInsert.concat(presortedArrayObj[sign].pendingItems).concat(marketsToResort);
+
+				presortedArrayObj[sign].pendingItems = [];
+
+				insertMultipleItemsIntoSortedArray(totalMarkets, presortedArrayObj[sign].array, weight.comparisonFunctionMaker(sign === "positive" ? 1 : -1));
+			}
+		} else {
+			presortedArrays[weight.settingId].positive.pendingItems.push(...marketsToInsert);
+			presortedArrays[weight.settingId].negative.pendingItems.push(...marketsToInsert);
+		}
+	}
+}
+
 const updateSortingOptionValues = function() {
 	const allSortingWeights = Object.values(allSettingsData).filter(field => field.type === "sortingWeight");
 	for (let weight of allSortingWeights) {
@@ -531,52 +593,83 @@ let allMarketData = {},//Also stores a reference to a row element.
 
 let allMarketsSorted = true;
 
+const pendingMarketsToAdd = [];
+const addMarkets = async function() {
+	while (true) {
+		if (pendingMarketsToAdd.length > 0) {
+			const markets = pendingMarketsToAdd.splice(0, 500);
+			uiControlFlow("marketsChanged", markets);
+		}
+		await sleep(30);
+	}
+}
+
+const convertInputMarketsToMarketsToDoStuffWith = function(markets) {
+	markets = markets.filter(function(market) {
+		return market.hasOwnProperty("type") && market.hasOwnProperty("lastUpdatedTime") && !market.hasOwnProperty("isResolved") && market.type !== "bugged";
+	});
+	if (markets.length > 1 && !markets[0].normalizedQuestion) {
+		throw new Error("Markets not normalized.");
+	}
+	const uniqueMarkets = {};
+	for (let market of markets) {
+		if (!uniqueMarkets[market.id] || uniqueMarkets[market.id].lastUpdatedTime < market.lastUpdatedTime) {
+			uniqueMarkets[market.id] = market;
+		}
+	}
+	const newMarketsToAdd = [];
+	const existingMarketsToEdit = [];
+	for (let id in uniqueMarkets) {
+		const market = uniqueMarkets[id];
+		if (allMarketData[market.id] === undefined) {
+			newMarketsToAdd.push(market);
+		} else if (market.lastUpdatedTime > allMarketData[market.id].lastUpdatedTime) {
+			existingMarketsToEdit.push(market);
+		}
+	}
+	return {
+		"newMarketsToAdd": newMarketsToAdd,
+		"existingMarketsToEdit": existingMarketsToEdit,
+	};
+}
+
 //This function handles all modification of the results table, and all modification of allMarketData, allMarketArray, and currentMarketArray.
 const uiControlFlow = function(mode, markets) {
 	const startTime = performance.now();
-	if (markets && markets.length > 1 && !markets[0].normalizedQuestion) {
-		throw new Error("Control flow markets not normalized.");
-	}
 	if (!["marketsChanged", "filtersChanged", "sortingChanged", "visibilityChanged"].includes(mode)) {
 		throw new Error(`${mode} is not a valid control flow mode`);
 	}
 
 	if (mode === "marketsChanged") {
+		const result = convertInputMarketsToMarketsToDoStuffWith(markets);
+		const newMarketsToAdd = result.newMarketsToAdd;
+		const existingMarketsToEdit = result.existingMarketsToEdit;
 
-		for (let i = 0 ; i < markets.length ; i++) {
-			const market = markets[i];
-
-			if (!market.hasOwnProperty("type") || market.hasOwnProperty("isResolved") || market.type === "bugged") {//This can be deleted in a few weeks.
-				markets.splice(i, 1);
-				i--;
-				continue;
-			}
-
-			if (allMarketData[market.id] === undefined) {
-				allMarketData[market.id] = market;
-			} else if (market.lastUpdatedTime > allMarketData[market.id].lastUpdatedTime) {
-				market.elementRef = allMarketData[market.id].elementRef;
-				allMarketData[market.id] = market;
-				if (market.elementRef) {
-					updateRow(market.elementRef, market);
-				}
+		for (let newMarket of newMarketsToAdd) {
+			allMarketData[newMarket.id] = newMarket;
+			allMarketArray.push(newMarket);
+		}
+		for (let changedMarket of existingMarketsToEdit) {
+			changedMarket.elementRef = allMarketData[changedMarket.id].elementRef;
+			allMarketData[changedMarket.id] = changedMarket;
+			if (changedMarket.elementRef) {
+				updateRow(changedMarket.elementRef, changedMarket);
 			}
 		}
-
+		if (verbose) {console.log(performance.now() - startTime);}
+		insertIntoPresortedArrays(newMarketsToAdd, existingMarketsToEdit);
 		if (markets.length > 0) {
-			allMarketArray = Object.values(allMarketData);
+			if (verbose) {console.log(performance.now() - startTime);}
 			mixedSort(allMarketArray);
 			allMarketsSorted = true;
+			if (verbose) {console.log(performance.now() - startTime);}
 			filterMarkets();
 			if (lucky && currentMarketArray.length > 0) {
 				window.location.href = marketUrl(currentMarketArray[0]);
 			} else {
+				if (verbose) {console.log(performance.now() - startTime);}
 				displayRows();
 			}
-		}
-
-		if (allRemoteMarketsLoaded) {
-			saveMarketData();
 		}
 	}
 	if (mode === "visibilityChanged") {
@@ -611,9 +704,12 @@ const uiControlFlow = function(mode, markets) {
 
 	history.replaceState({}, "", currentSettingsToUrl());
 
-	//console.log(`In total, control flow took ${performance.now() - startTime}ms`);
+	if (verbose) {
+		console.log(`In total, control flow took ${performance.now() - startTime}ms`);
+	}
 	const postControlFlowTime = performance.now();
 	setTimeout(function() {
+		//I think this is mostly the garbage collector.
 		//console.log("Post-control-flow microtasks took " + (performance.now() - postControlFlowTime) + "ms");
 	}, 0);
 }
@@ -727,31 +823,30 @@ const createDatalists = function() {
 }
 
 const mixedSort = function(markets) {
-	const startTime = performance.now();
+	const nonZeroSortingWeights = Object.values(allSettingsData).filter(setting => setting.type === "sortingWeight" && setting.currentValue !== 0);
 
-	for (let market of markets) {
-		market.totalSortingWeightIndex = 0;
-	}
-	//This sort takes vastly longer than the later one since it's doing string comparisons rather than number.
-	for (weight of Object.values(allSettingsData)) {
-		if (weight.type === "sortingWeight") {
-			if (weight.currentValue !== 0) {
-				weight.sortingFunction(markets, weight.currentValue);
-				for (let i in markets) {
-					markets[i].totalSortingWeightIndex += i * weight.currentValue;
-				}
+	let firstArray = true;
+	for (weight of nonZeroSortingWeights) {
+		const sign = weight.currentValue > 0 ? "positive" : "negative";
+		const presortedArray = presortedArrays[weight.settingId][sign].array;
+
+		if (presortedArray.length !== allMarketArray.length) {
+			insertIntoPresortedArrays([], []);
+		}
+
+		for (let i in presortedArray) {
+			if (firstArray) {//It's much faster to leave the markets with this property and reset it as part of this loop than to make additional loops to wipe and reset it.
+				presortedArray[i].totalSortingWeightIndex = i * weight.currentValue;
+			} else {
+				presortedArray[i].totalSortingWeightIndex += i * weight.currentValue;
 			}
 		}
+		firstArray = false;
 	}
 
 	markets.sort(function(a, b) {
 		return a.totalSortingWeightIndex - b.totalSortingWeightIndex;
 	});
-
-	for (market of markets) {
-		delete market.totalSortingWeightIndex;
-	}
-	//console.log(`Sorted ${markets.length} markets in ${performance.now() - startTime}ms`)
 }
 
 const filterMarkets = function() {
@@ -805,12 +900,11 @@ const filterMarkets = function() {
 		}
 	}
 
-
 	if (!searchTerms.open) {
 		markets = markets.filter(market => market.hasOwnProperty("closeTime") && market.closeTime < Date.now());
 	}
 	if (!searchTerms.closed) {
-		markets = markets.filter(market => market.closeTime > Date.now() || market.resolution !== null);
+		markets = markets.filter(market => !market.hasOwnProperty("closeTime") || market.closeTime > Date.now() || market.resolution !== null);
 	}
 	if (!searchTerms.resolved) {
 		markets = markets.filter(market => market.resolution === null);
@@ -942,14 +1036,16 @@ const filterMarkets = function() {
 
 let numDots = 0;
 const loadingInterval = setInterval(function() {
-	if (!(allRemoteMarketsLoaded || allLocalMarketsLoaded)) {
-		document.getElementById("loadingIndicator").textContent = `Loading markets${".".repeat(numDots)}`;
-		numDots++;
-		if (numDots > 3) {
-			numDots = 0;
-		}
+	document.getElementById("loadingIndicator").textContent = `Loading markets${".".repeat(numDots)}`;
+	numDots++;
+	if (numDots > 3) {
+		numDots = 0;
 	}
-}, 500)
+	if ((allRemoteMarketsLoaded || allLocalMarketsLoaded) && pendingMarketsToAdd.length === 0) {
+		document.getElementById("loadingIndicator").style.display = "none";
+		clearInterval(loadingInterval);
+	}
+}, 200)
 
 const searchFruits = ["Caring kumquat", "Sassy strawberry", "Mysterious mango", "Embarrassed eggplant"];
 const preloadedImages = [];
@@ -1022,7 +1118,7 @@ setInterval(function() {
 let lastFreeTime = performance.now();
 setInterval(function() {
 	lastFreeTime = performance.now();
-}, 20);
+}, 5);
 
 const createRow = function(market) {
 	const row = document.createElement("span");
@@ -1139,7 +1235,7 @@ const createRow = function(market) {
 
 	updateRow(row, market);
 
-	allMarketData[market.id].elementRef = row;
+	market.elementRef = row;
 }
 
 const updateRelativeTimeDisplays = function(ms) {
@@ -1385,12 +1481,14 @@ function formatDateDistance(inputTimestamp) {
 //Split up an object between localstorage and the file system, for faster loading. Localstorage is gzipped to fit under the 5MB size limit. Saves them as an array, after removing irrelevant fields.
 const savingWorker = new Worker("savingWorker.js");
 const saveMarketData = async function() {
+	const start = performance.now();
 	const simpleMarkets = allMarketArray.map(market => Object.assign({}, market));
 	for (let market of simpleMarkets) {
 		//elementRef has to be removed before sending this to the worker because HTML elements can't be cloned.
 		delete market.elementRef;
 	}
 	savingWorker.postMessage(simpleMarkets);
+	//console.log(performance.now() - start)
 }
 savingWorker.onmessage = async function(message) {
 
@@ -1402,7 +1500,9 @@ savingWorker.onmessage = async function(message) {
 	await writable.write(message.data.fileSystem);
 	await writable.close();
 
-	console.log(`Saved ${message.data.localStorage.length / 1000000}MB to localStorage, ${message.data.fileSystem.length / 1000000}MB to the file system`);
+	//console.log(`Saved ${(message.data.localStorage.length / 1000000).toFixed(1)}MB to localStorage, ${(message.data.fileSystem.length / 1000000).toFixed(1)}MB to the file system`);
+
+	setTimeout(saveMarketData, 60000)
 }
 
 const grabUpdates = async function() {
@@ -1414,21 +1514,12 @@ const grabUpdates = async function() {
 		return;
 	}
 	const startTime = performance.now();
-	const changedMarkets = [];
 
 	for (let id in grabbedMarkets) {
-		if (allMarketData[id] === undefined || grabbedMarkets[id].lastUpdatedTime !== allMarketData[id].lastUpdatedTime) {
+		if (allMarketData[id] === undefined || grabbedMarkets[id].lastUpdatedTime > (allMarketData[id].lastUpdatedTime || 0)) {
 			addNormalizedFieldsToMarketData(grabbedMarkets[id]);
-			changedMarkets.push(grabbedMarkets[id]);
+			pendingMarketsToAdd.push(grabbedMarkets[id]);
 		}
-	}
-
-	if (changedMarkets.length > 0) {
-		uiControlFlow("marketsChanged", changedMarkets);
-	}
-
-	if (changedMarkets.length > 0) {
-		console.log(`Updated ${changedMarkets.length} markets in ${performance.now() - startTime}ms`);
 	}
 }
 
@@ -1436,17 +1527,17 @@ const sleep = async function(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-const loop = async function() {
+const newMarketLoop = async function() {
 	while (true) {
 		await grabUpdates();
 		if (allRemoteMarketsLoaded) {
-			await sleep(1000);
+			await sleep(500);
 		} else {
-			await sleep(10000);//If the main file is still being streamed, we don't want to grab redundant data and slow down processing, but if the user is on a slow connection, we do need to grab updates before they expire on the server.
+			await sleep(5000);//If the main file is still being streamed, we don't want to grab redundant data and slow down processing, but if the user is on a slow connection, we do need to grab updates before they expire on the server.
 		}
 	}
 }
-loop();
+newMarketLoop();
 
 document.getElementById("searchCriteria").addEventListener("input", function(event) {
 	uiControlFlow("filtersChanged");
@@ -1527,19 +1618,14 @@ const handleReturnedChunkOfMarkets = async function(data, origin) {
 		console.log(`All ${origin} markets loaded`);
 		if (origin === "network") {
 			allRemoteMarketsLoaded = true;
+			saveMarketData();
 		} else {
 			allLocalMarketsLoaded = true;
 		}
-		saveMarketData();
-		document.getElementById("loadingIndicator").style.display = "none";
-		clearInterval(loadingInterval);
 		return;
 	}
+	pendingMarketsToAdd.push(...data);
 
-	if (data.length > 0) {
-		uiControlFlow("marketsChanged", data);
-	}
-	//console.log(`Loaded ${data.length} markets from the ${origin}.`);
 	createDatalists();
 }
 
@@ -1820,8 +1906,8 @@ if (locallyStoredMarketDataString) {
 	for (let market of loadedMarkets) {
 		addNormalizedFieldsToMarketData(market);
 	}
-	if (loadedMarkets.length > 0) {
-		uiControlFlow("marketsChanged", loadedMarkets);
-	}
+	pendingMarketsToAdd.push(...loadedMarkets);
 	console.log(`Loaded ${Object.keys(loadedMarkets).length} markets from localStorage`);
 }
+
+addMarkets();
