@@ -14,6 +14,7 @@ const readsRateLimit = async function() {
 		await sleep(50);
 		readsInPastSecond = readsInPastSecond.filter(time => performance.now() - time > 1000);
 	}
+	readsInPastSecond.push(performance.now());
 	return true;
 }
 //Bets are limited to 10 per minute on average, but transient spikes are ok, so we limit it to 100 per 10 minutes.
@@ -26,6 +27,7 @@ const betsRateLimit = async function() {
 		await sleep(500);
 		betsInPastSecond = betsInPastSecond.filter(time => performance.now() - time > 600000);
 	}
+	betsInPastSecond.push(performance.now());
 	return true;
 }
 
